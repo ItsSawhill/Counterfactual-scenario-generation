@@ -1,0 +1,6 @@
+asset,symbol,asset_class,include_volume,continuous_contract_required
+SPY,SPY,equity_etf,True,False
+QQQ,QQQ,equity_etf,True,False
+GC,GC=F,gold_futures,False,True
+CL,CL=F,oil_futures,False,True
+ZN,ZN=F,rates_futures,False,True

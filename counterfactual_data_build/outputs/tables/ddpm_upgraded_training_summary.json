@@ -1,0 +1,16 @@
+{
+  "device": "cpu",
+  "num_epochs_completed": 28,
+  "max_epochs_allowed": 35,
+  "batch_size": 64,
+  "train_samples": 2715,
+  "val_samples": 559,
+  "best_epoch": 20,
+  "best_val_loss": 0.26047393295760657,
+  "final_train_loss": 0.11810988988281394,
+  "final_val_loss": 0.27388747625572735,
+  "total_train_seconds": 80.40744948387146,
+  "best_checkpoint": "C:\\Users\\sammy\\finance-ui\\counterfactual_data_build\\outputs\\checkpoints\\conditional_ddpm_upgraded_best.pt",
+  "last_checkpoint": "C:\\Users\\sammy\\finance-ui\\counterfactual_data_build\\outputs\\checkpoints\\conditional_ddpm_upgraded_last.pt",
+  "history_csv": "C:\\Users\\sammy\\finance-ui\\counterfactual_data_build\\outputs\\tables\\ddpm_upgraded_training_history.csv"
+}

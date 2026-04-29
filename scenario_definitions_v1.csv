@@ -1,0 +1,13 @@
+scenario_id,scenario_name,series_id,shock_mode,shock_value,shock_units,shock_duration_days,scenario_family,notes
+baseline,Baseline,,none,0.0,none,30,baseline,No macro intervention
+hawkish_policy,Hawkish Policy Shock,FEDFUNDS,delta,1.0,pct_points,30,policy,Raises policy rate by 100 bps
+hawkish_policy,Hawkish Policy Shock,DGS10,delta,0.5,pct_points,30,policy,Raises 10Y yield by 50 bps
+sticky_inflation,Sticky Inflation,CPIAUCSL,percent,0.01,fractional_change,30,inflation,Pushes CPI level 1 percent higher
+sticky_inflation,Sticky Inflation,VIXCLS,delta,4.0,index_points,30,inflation,Adds volatility stress
+growth_scare,Growth Scare,UNRATE,delta,1.0,pct_points,30,growth,Raises unemployment rate by 1 point
+growth_scare,Growth Scare,VIXCLS,delta,8.0,index_points,30,growth,Sharp volatility increase
+growth_scare,Growth Scare,DGS10,delta,-0.4,pct_points,30,growth,Flight-to-quality lowers long yields
+risk_compression,Risk Compression,VIXCLS,delta,-5.0,index_points,30,volatility,Compressed implied volatility
+risk_compression,Risk Compression,FEDFUNDS,delta,-0.5,pct_points,30,policy,More supportive policy stance
+inflation_reacceleration,Inflation Reacceleration,CPIAUCSL,percent,0.02,fractional_change,30,inflation,Stronger inflation impulse
+inflation_reacceleration,Inflation Reacceleration,DGS10,delta,0.3,pct_points,30,inflation,Long yields move higher

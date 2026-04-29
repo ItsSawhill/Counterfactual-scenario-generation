@@ -1,0 +1,14 @@
+numpy
+pandas
+matplotlib
+scipy
+scikit-learn
+torch
+yfinance
+requests
+ipython
+nbformat
+nbclient
+jupyter
+ipykernel
+pandas_datareader

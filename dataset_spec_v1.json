@@ -1,0 +1,306 @@
+{
+  "dataset_name": "counterfactual_dataset_v1",
+  "version": "1.0.0",
+  "description": "Release-aware macro + cross-asset market state dataset for conditional diffusion-based counterfactual generation.",
+  "baseline_reference": {
+    "name": "baseline_v0",
+    "targets": [
+      "SPY",
+      "QQQ",
+      "GLD"
+    ],
+    "macro_series": [
+      "FEDFUNDS",
+      "DGS10",
+      "CPIAUCSL",
+      "UNRATE",
+      "VIXCLS"
+    ],
+    "seq_len": 30,
+    "horizon": 30,
+    "model_family": "conditional_ddpm"
+  },
+  "project_paths": {
+    "artifact_root_hint": "C:\\path\\to\\counterfactual_project",
+    "data_root_relative": "data",
+    "raw_dir_relative": "raw",
+    "processed_dir_relative": "processed",
+    "tables_dir_relative": "outputs\\tables"
+  },
+  "calendar": {
+    "calendar_type": "trading_day",
+    "calendar_provider": "yfinance",
+    "calendar_anchor_tickers": [
+      "SPY",
+      "QQQ",
+      "GC=F",
+      "CL=F",
+      "ZN=F"
+    ],
+    "start_date": "2010-01-01",
+    "end_mode": "today"
+  },
+  "targets": [
+    {
+      "symbol": "SPY",
+      "normalized_name": "SPY",
+      "asset_class": "equity_etf",
+      "provider": "yfinance",
+      "field": "Adj Close",
+      "target_column": "SPY_log_return",
+      "include_volume": true
+    },
+    {
+      "symbol": "QQQ",
+      "normalized_name": "QQQ",
+      "asset_class": "equity_etf",
+      "provider": "yfinance",
+      "field": "Adj Close",
+      "target_column": "QQQ_log_return",
+      "include_volume": true
+    },
+    {
+      "symbol": "GC=F",
+      "normalized_name": "GC",
+      "asset_class": "gold_futures",
+      "provider": "yfinance",
+      "field": "Adj Close",
+      "target_column": "GC_log_return",
+      "include_volume": false,
+      "continuous_contract_required": true
+    },
+    {
+      "symbol": "CL=F",
+      "normalized_name": "CL",
+      "asset_class": "oil_futures",
+      "provider": "yfinance",
+      "field": "Adj Close",
+      "target_column": "CL_log_return",
+      "include_volume": false,
+      "continuous_contract_required": true
+    },
+    {
+      "symbol": "ZN=F",
+      "normalized_name": "ZN",
+      "asset_class": "rates_futures",
+      "provider": "yfinance",
+      "field": "Adj Close",
+      "target_column": "ZN_log_return",
+      "include_volume": false,
+      "continuous_contract_required": true
+    }
+  ],
+  "macro_series": [
+    {
+      "series_id": "FEDFUNDS",
+      "display_name": "Effective Federal Funds Rate",
+      "source": "FRED",
+      "frequency": "monthly",
+      "family": "policy",
+      "use_vintages": true,
+      "observation_anchor": "month_end",
+      "fallback_release_lag_calendar_days": 7,
+      "feature_columns": [
+        "FEDFUNDS_level",
+        "FEDFUNDS_delta",
+        "FEDFUNDS_z"
+      ]
+    },
+    {
+      "series_id": "DGS2",
+      "display_name": "2-Year Treasury Yield",
+      "source": "FRED",
+      "frequency": "daily",
+      "family": "rates",
+      "use_vintages": false,
+      "observation_anchor": "same_day",
+      "fallback_release_lag_calendar_days": 1,
+      "feature_columns": [
+        "DGS2_level",
+        "DGS2_delta",
+        "DGS2_z"
+      ]
+    },
+    {
+      "series_id": "DGS10",
+      "display_name": "10-Year Treasury Yield",
+      "source": "FRED",
+      "frequency": "daily",
+      "family": "rates",
+      "use_vintages": false,
+      "observation_anchor": "same_day",
+      "fallback_release_lag_calendar_days": 1,
+      "feature_columns": [
+        "DGS10_level",
+        "DGS10_delta",
+        "DGS10_z"
+      ]
+    },
+    {
+      "series_id": "T10Y2Y",
+      "display_name": "10Y Minus 2Y Treasury Slope",
+      "source": "FRED",
+      "frequency": "daily",
+      "family": "curve",
+      "use_vintages": false,
+      "observation_anchor": "same_day",
+      "fallback_release_lag_calendar_days": 1,
+      "feature_columns": [
+        "T10Y2Y_level"
+      ]
+    },
+    {
+      "series_id": "CPIAUCSL",
+      "display_name": "Consumer Price Index",
+      "source": "FRED",
+      "frequency": "monthly",
+      "family": "inflation",
+      "use_vintages": true,
+      "observation_anchor": "month_end",
+      "fallback_release_lag_calendar_days": 14,
+      "feature_columns": [
+        "CPIAUCSL_level",
+        "CPIAUCSL_delta",
+        "CPIAUCSL_z"
+      ]
+    },
+    {
+      "series_id": "UNRATE",
+      "display_name": "Unemployment Rate",
+      "source": "FRED",
+      "frequency": "monthly",
+      "family": "labor",
+      "use_vintages": true,
+      "observation_anchor": "month_end",
+      "fallback_release_lag_calendar_days": 7,
+      "feature_columns": [
+        "UNRATE_level",
+        "UNRATE_delta",
+        "UNRATE_z"
+      ]
+    },
+    {
+      "series_id": "PAYEMS",
+      "display_name": "Nonfarm Payrolls",
+      "source": "FRED",
+      "frequency": "monthly",
+      "family": "labor",
+      "use_vintages": true,
+      "observation_anchor": "month_end",
+      "fallback_release_lag_calendar_days": 7,
+      "feature_columns": [
+        "PAYEMS_level",
+        "PAYEMS_delta",
+        "PAYEMS_z"
+      ]
+    },
+    {
+      "series_id": "INDPRO",
+      "display_name": "Industrial Production Index",
+      "source": "FRED",
+      "frequency": "monthly",
+      "family": "growth",
+      "use_vintages": true,
+      "observation_anchor": "month_end",
+      "fallback_release_lag_calendar_days": 16,
+      "feature_columns": [
+        "INDPRO_level",
+        "INDPRO_delta",
+        "INDPRO_z"
+      ]
+    },
+    {
+      "series_id": "VIXCLS",
+      "display_name": "CBOE Volatility Index",
+      "source": "FRED",
+      "frequency": "daily",
+      "family": "volatility",
+      "use_vintages": false,
+      "observation_anchor": "same_day",
+      "fallback_release_lag_calendar_days": 1,
+      "feature_columns": [
+        "VIXCLS_level",
+        "VIXCLS_z"
+      ]
+    }
+  ],
+  "market_feature_groups": {
+    "core_returns": [
+      "return_1d",
+      "return_5d",
+      "return_20d"
+    ],
+    "risk_state": [
+      "realized_vol_5d",
+      "realized_vol_20d",
+      "downside_semivol_20d",
+      "rolling_max_drawdown_20d",
+      "rolling_skew_20d",
+      "rolling_kurtosis_20d"
+    ],
+    "cross_asset": [
+      "gold_minus_equity_return_5d",
+      "oil_minus_equity_return_5d",
+      "growth_minus_broad_equity_return_5d",
+      "rates_minus_equity_return_5d",
+      "cross_asset_corr_20d"
+    ],
+    "event_timing": [
+      "release_day_flag",
+      "days_since_cpi",
+      "days_since_fomc",
+      "days_since_nfp"
+    ]
+  },
+  "news_event_features": {
+    "phase": "v2",
+    "columns": [
+      "macro_event_count_3d",
+      "headline_sentiment_3d",
+      "headline_uncertainty_3d",
+      "fomc_tone_score",
+      "inflation_news_sentiment_3d",
+      "growth_news_sentiment_3d"
+    ]
+  },
+  "shock_schema": {
+    "shock_vector_columns": [
+      "shock_target_series",
+      "shock_type",
+      "shock_magnitude_normalized",
+      "shock_duration_days",
+      "scenario_family"
+    ],
+    "shock_types": [
+      "delta",
+      "percent",
+      "level"
+    ]
+  },
+  "training_layout": {
+    "seq_len": 30,
+    "forecast_horizon": 30,
+    "target_tensor_name": "X_target_history",
+    "conditioning_tensor_name": "C_dynamic_features",
+    "shock_tensor_name": "S_static_shock",
+    "split_strategy": "chronological",
+    "split_ratios": {
+      "train": 0.7,
+      "val": 0.15,
+      "test": 0.15
+    }
+  },
+  "loader_outputs": {
+    "macro_release_events_csv": "processed\\macro\\macro_release_events.csv",
+    "macro_release_aware_daily_csv": "processed\\macro\\macro_release_aware_daily.csv",
+    "market_panel_csv": "processed\\market\\market_daily_panel.csv",
+    "aligned_dataset_csv": "processed\\aligned\\aligned_counterfactual_dataset_v1.csv"
+  },
+  "validation_checks": [
+    "no_macro_value_is_visible_before_release_date",
+    "all_daily_macro_rows_are_on_trading_calendar",
+    "release_events_are_monotonic_within_series",
+    "missing_macro_segments_are_logged",
+    "all_target_returns_align_to_same_date_index"
+  ]
+}

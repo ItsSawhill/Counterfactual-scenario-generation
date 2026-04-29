@@ -1,0 +1,89 @@
+:root {
+  --bg: #061018;
+  --panel-bg: rgba(9, 18, 28, 0.84);
+  --panel-border: rgba(125, 164, 196, 0.16);
+  --heading: #f4f7fb;
+  --text: #c4d0db;
+  --text-muted: #7f93a8;
+  --accent: #4de2c5;
+  --positive: #7ce4ae;
+  --danger: #ff7b7b;
+  --shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  --sans: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", "Cascadia Code", Consolas, monospace;
+
+  color-scheme: dark;
+  font-family: var(--sans);
+  color: var(--text);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(20, 67, 102, 0.35),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at top right,
+      rgba(77, 226, 197, 0.12),
+      transparent 20%
+    ),
+    linear-gradient(180deg, #07111a 0%, #08111a 45%, #050b11 100%);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  color: var(--heading);
+  font-weight: 600;
+}
+
+h1 {
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+h2 {
+  font-size: 1.35rem;
+}
+
+h3 {
+  font-size: 1rem;
+}
+
+p {
+  line-height: 1.55;
+}
+
+a {
+  color: inherit;
+}
