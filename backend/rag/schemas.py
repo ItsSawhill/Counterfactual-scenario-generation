@@ -5,6 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from backend.model.schemas import ScenarioGenerationResponse
+
 
 class RagConfig(BaseModel):
     chunk_size: int = 900
@@ -66,8 +68,9 @@ class GenerateWithContextRequest(BaseModel):
 class GenerateWithContextResponse(BaseModel):
     user_request: str
     retrieved_context: list[RetrievedContext]
-    generated_scenario: dict[str, Any]
-    integration_status: str
+    generated_scenario: ScenarioGenerationResponse
+    metadata: dict[str, Any]
+    fallback_generator_used: bool
     integration_notes: list[str]
 
 

@@ -52,6 +52,8 @@ The current repository keeps most inference logic in notebooks, especially:
 
 The new `POST /generate-with-context` route already retrieves relevant context and returns it with the user request. The final production integration step is to extract scenario inference into an importable Python module and call it from the endpoint after retrieval.
 
+The backend now routes that request through `backend/model/scenario_generator.py`. At the moment this uses a documented fallback generator that preserves the frontend/backend contract until DDPM inference is extracted from the notebooks.
+
 This keeps the RAG layer additive:
 
 - no notebook rewrites

@@ -25,3 +25,5 @@ pydantic
 pyyaml
 faiss-cpu
 sentence-transformers
+pytest
+httpx

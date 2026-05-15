@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from fastapi import FastAPI, HTTPException
 
+from backend.model import generate_scenario, simulate_frontend_request
+from backend.model.schemas import LiveStateMeta, ScenarioParameters
 from backend.rag.ingest import ingest_project_documents, load_rag_config
 from backend.rag.retriever import retrieve_context
 from backend.rag.schemas import (
@@ -32,29 +33,6 @@ def _vector_store_ready() -> tuple[bool, str]:
     vector_store_path = resolve_vector_store_path(PROJECT_ROOT, config)
     ready = (vector_store_path / "index.faiss").exists() and (vector_store_path / "metadata.json").exists()
     return ready, str(vector_store_path.relative_to(PROJECT_ROOT))
-
-
-def _build_generation_placeholder(
-    user_request: str,
-    scenario_parameters: dict[str, Any],
-    rag_response: QueryResponse,
-) -> GenerateWithContextResponse:
-    return GenerateWithContextResponse(
-        user_request=user_request,
-        retrieved_context=rag_response.contexts,
-        generated_scenario={
-            "status": "placeholder",
-            "scenario_request": user_request,
-            "scenario_parameters": scenario_parameters,
-            "suggested_next_step": "Connect this endpoint to the live counterfactual notebook or a packaged inference module.",
-        },
-        integration_status="rag_connected_model_pending",
-        integration_notes=[
-            "Current scenario generation logic lives primarily in live_counterfactual_lab_v1.ipynb and realtime_counterfactual_generation_system.ipynb.",
-            "The clean production path is to extract notebook inference into importable Python modules, then call that module here after retrieval.",
-            "Retrieved context is already available in this endpoint and can be appended to scenario prompts, logged as provenance, or mapped into scenario constraints before model execution.",
-        ],
-    )
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -91,8 +69,45 @@ def generate_with_context(request: GenerateWithContextRequest) -> GenerateWithCo
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    return _build_generation_placeholder(
+    generated = generate_scenario(
         user_request=request.user_request,
         scenario_parameters=request.scenario_parameters,
-        rag_response=rag_response,
+        retrieved_context=[context.model_dump() for context in rag_response.contexts],
     )
+    return GenerateWithContextResponse(
+        user_request=request.user_request,
+        retrieved_context=rag_response.contexts,
+        generated_scenario=generated,
+        metadata={
+            "generator_type": generated["metadata"]["generator_type"],
+            "retrieved_context_count": len(rag_response.contexts),
+            "project_root": str(PROJECT_ROOT),
+        },
+        fallback_generator_used=generated["fallback_generator_used"],
+        integration_notes=[
+            "Current model-facing generation is connected through backend/model/scenario_generator.py.",
+            "The fallback stochastic generator should be replaced with extracted DDPM inference from live_counterfactual_lab_v1.ipynb or realtime_counterfactual_generation_system.ipynb.",
+            "Retrieved RAG context is already passed into the generator and can be upgraded from heuristic guidance to true model conditioning logic later.",
+        ],
+    )
+
+
+@app.post("/simulate")
+def simulate(request: ScenarioParameters) -> dict:
+    return simulate_frontend_request(
+        inflation=request.inflation,
+        interest_rate=request.interest_rate,
+        horizon=request.horizon,
+        path_count=request.path_count,
+    )
+
+
+@app.post("/refresh-live-state", response_model=LiveStateMeta)
+def refresh_live_state() -> LiveStateMeta:
+    generated = simulate_frontend_request(
+        inflation=0.03,
+        interest_rate=0.04,
+        horizon=30,
+        path_count=64,
+    )
+    return LiveStateMeta(**generated["live_state"])

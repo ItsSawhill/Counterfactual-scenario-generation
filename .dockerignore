@@ -1,0 +1,17 @@
+.git
+.venv
+__pycache__
+.pytest_cache
+node_modules
+dist
+build
+.env
+.env.*
+.rag_store
+backend/rag/store
+counterfactual_data_build/processed
+counterfactual_data_build/outputs/checkpoints
+counterfactual_data_build/outputs/generated_samples
+counterfactual_data_build/outputs/live_counterfactuals
+executed_notebooks
+outputs

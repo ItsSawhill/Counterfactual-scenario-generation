@@ -184,6 +184,12 @@ Run the backend:
 uvicorn backend.main:app --reload
 ```
 
+Run with Docker:
+
+```bash
+docker compose up --build
+```
+
 Example ingest:
 
 ```bash
@@ -217,7 +223,20 @@ curl -X POST http://127.0.0.1:8000/generate-with-context \
   }'
 ```
 
-The current endpoint returns retrieved context plus a clean integration placeholder. The intended production connection point is the live counterfactual inference flow currently implemented in the notebooks.
+Example frontend-compatible simulation:
+
+```bash
+curl -X POST http://127.0.0.1:8000/simulate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "inflation": 0.03,
+    "interest_rate": 0.04,
+    "horizon": 30,
+    "path_count": 128
+  }'
+```
+
+The current backend now includes a model-facing generation module and a frontend-compatible `/simulate` route. Until DDPM inference is extracted from the notebooks, scenario outputs may use fallback stochastic logic designed to preserve the API contract and UI behavior.
 
 ## Technologies Used
 

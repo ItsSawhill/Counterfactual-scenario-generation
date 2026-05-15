@@ -61,6 +61,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Generated data, checkpoints, and samples
+checkpoints/
+processed/
+generated_samples/
 counterfactual_data_build/processed/
 counterfactual_data_build/outputs/checkpoints/
 counterfactual_data_build/outputs/generated_samples/
