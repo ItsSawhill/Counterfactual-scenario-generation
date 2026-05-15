@@ -1,0 +1,19 @@
+# Core scientific stack
+numpy
+pandas
+scipy
+scikit-learn
+matplotlib
+torch
+
+# Data access
+yfinance
+requests
+pandas-datareader
+
+# Notebook and execution runtime
+ipython
+ipykernel
+jupyter
+nbformat
+nbclient
