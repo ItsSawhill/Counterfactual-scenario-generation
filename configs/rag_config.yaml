@@ -1,0 +1,8 @@
+chunk_size: 900
+chunk_overlap: 150
+top_k: 5
+embedding_model: sentence-transformers/all-MiniLM-L6-v2
+vector_store_path: .rag_store
+source_directories:
+  - docs
+  - data/context

@@ -167,6 +167,58 @@ npm run dev
 
 The frontend expects a simulation API on `http://127.0.0.1:8000`. That backend is referenced by the UI but is not fully versioned in this repository, so the current frontend should be treated as a presentation layer for the scenario lab rather than a standalone deployed app.
 
+## RAG-Enhanced Scenario Generation
+
+The repository now includes a lightweight FastAPI-based retrieval layer under `backend/` that can ingest local project documents, build a local vector store, and retrieve relevant macro or methodological context before a scenario request is generated or evaluated.
+
+Endpoints:
+
+- `GET /health`
+- `POST /rag/ingest`
+- `POST /rag/query`
+- `POST /generate-with-context`
+
+Run the backend:
+
+```bash
+uvicorn backend.main:app --reload
+```
+
+Example ingest:
+
+```bash
+curl -X POST http://127.0.0.1:8000/rag/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"force_rebuild": true}'
+```
+
+Example retrieval query:
+
+```bash
+curl -X POST http://127.0.0.1:8000/rag/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What happens if inflation rises while unemployment increases?", "top_k": 5}'
+```
+
+Example context-aware generation:
+
+```bash
+curl -X POST http://127.0.0.1:8000/generate-with-context \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_request": "Generate a stagflation-oriented scenario with tighter policy and weaker labor conditions.",
+    "top_k": 5,
+    "scenario_parameters": {
+      "inflation": 0.055,
+      "interest_rate": 0.0525,
+      "horizon": 30,
+      "path_count": 128
+    }
+  }'
+```
+
+The current endpoint returns retrieved context plus a clean integration placeholder. The intended production connection point is the live counterfactual inference flow currently implemented in the notebooks.
+
 ## Technologies Used
 
 - Python

@@ -47,6 +47,10 @@ coverage/
 .env.*
 *.local
 
+# Retrieval / vector store artifacts
+.rag_store/
+backend/rag/store/
+
 # Logs
 logs/
 *.log

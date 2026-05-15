@@ -17,3 +17,11 @@ ipykernel
 jupyter
 nbformat
 nbclient
+
+# API and RAG layer
+fastapi
+uvicorn
+pydantic
+pyyaml
+faiss-cpu
+sentence-transformers
