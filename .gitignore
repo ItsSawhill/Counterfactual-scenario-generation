@@ -65,6 +65,8 @@ checkpoints/
 processed/
 generated_samples/
 counterfactual_data_build/processed/
+counterfactual_data_build/cache/
+counterfactual_data_build/smoke/
 counterfactual_data_build/outputs/checkpoints/
 counterfactual_data_build/outputs/generated_samples/
 counterfactual_data_build/outputs/live_counterfactuals/*.csv

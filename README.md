@@ -169,6 +169,11 @@ npm install
 
 ## Run The Research Pipeline
 
+There are two artifact-generation modes:
+
+- **Full research mode** runs the notebook chain against the configured multi-asset, release-aware macro dataset. This is the default behavior.
+- **Smoke validation mode** runs a small SPY-only path that writes clearly labeled artifacts under `counterfactual_data_build/smoke/`. It is meant to prove the local environment can build windows, scalers, a checkpoint, and generated samples quickly. It is not a replacement for the full research run.
+
 Validate local setup and print artifact readiness:
 
 ```bash
@@ -190,6 +195,20 @@ python pipeline_preflight_check.py --strict
 ```
 
 Strict mode exits nonzero if required DDPM artifacts are missing, including processed data, checkpoint directories, the best checkpoint, or generated sample directories.
+
+Check smoke artifacts:
+
+```bash
+python pipeline_preflight_check.py --smoke --strict
+```
+
+Run smoke validation:
+
+```bash
+python run_counterfactual_pipeline.py --smoke
+```
+
+Smoke mode writes to `counterfactual_data_build/smoke/` and avoids overwriting full-run artifacts.
 
 Run the notebook sequence:
 
