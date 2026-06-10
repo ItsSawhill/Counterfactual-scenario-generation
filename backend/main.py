@@ -5,9 +5,12 @@ import logging
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.model import generate_scenario, simulate_frontend_request
 from backend.model.schemas import LiveStateMeta, ScenarioParameters
+from backend.model.scenario_generator import smoke_ddpm_enabled
+from backend.model.smoke_inference import smoke_artifact_status
 from backend.rag.ingest import ingest_project_documents, load_rag_config
 from backend.rag.retriever import retrieve_context
 from backend.rag.schemas import (
@@ -30,6 +33,11 @@ logger = logging.getLogger("counterfactual_api")
 async def lifespan(app: FastAPI):
     logger.warning("/simulate is running in fallback simulation mode.")
     logger.warning("DDPM artifacts are not loaded by this backend yet; checkpoint-backed inference is not implemented.")
+    if smoke_ddpm_enabled():
+        logger.warning("SMOKE_DDPM_ENABLED=1: /simulate will use smoke checkpoint-backed inference when artifacts are present.")
+        logger.warning("Smoke artifact readiness: %s", smoke_artifact_status())
+    else:
+        logger.warning("SMOKE_DDPM_ENABLED is not set; smoke checkpoint-backed inference is disabled.")
     yield
 
 
@@ -38,6 +46,16 @@ app = FastAPI(
     version="0.1.0",
     description="Lightweight RAG and scenario-generation integration layer.",
     lifespan=lifespan,
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -82,11 +100,14 @@ def generate_with_context(request: GenerateWithContextRequest) -> GenerateWithCo
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    generated = generate_scenario(
-        user_request=request.user_request,
-        scenario_parameters=request.scenario_parameters,
-        retrieved_context=[context.model_dump() for context in rag_response.contexts],
-    )
+    try:
+        generated = generate_scenario(
+            user_request=request.user_request,
+            scenario_parameters=request.scenario_parameters,
+            retrieved_context=[context.model_dump() for context in rag_response.contexts],
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return GenerateWithContextResponse(
         user_request=request.user_request,
         retrieved_context=rag_response.contexts,
@@ -108,12 +129,15 @@ def generate_with_context(request: GenerateWithContextRequest) -> GenerateWithCo
 
 @app.post("/simulate")
 def simulate(request: ScenarioParameters) -> dict:
-    return simulate_frontend_request(
-        inflation=request.inflation,
-        interest_rate=request.interest_rate,
-        horizon=request.horizon,
-        path_count=request.path_count,
-    )
+    try:
+        return simulate_frontend_request(
+            inflation=request.inflation,
+            interest_rate=request.interest_rate,
+            horizon=request.horizon,
+            path_count=request.path_count,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.post("/refresh-live-state", response_model=LiveStateMeta)
