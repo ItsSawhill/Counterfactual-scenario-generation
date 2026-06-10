@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import numpy as np
 
 from backend.model.schemas import ScenarioGenerationResponse, ScenarioParameters
+from backend.model.smoke_inference import generate_smoke_ddpm_response
 from backend.model.utils import (
     ASSETS,
     BASE_DRIFT,
@@ -17,6 +19,10 @@ from backend.model.utils import (
     deterministic_seed,
     scenario_regime_adjustments,
 )
+
+
+def smoke_ddpm_enabled() -> bool:
+    return os.getenv("SMOKE_DDPM_ENABLED", "").strip() == "1"
 
 
 def _coerce_parameters(scenario_parameters: dict[str, Any] | ScenarioParameters | None) -> ScenarioParameters:
@@ -70,6 +76,12 @@ def generate_scenario(
     retrieved_context: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     params = _coerce_parameters(scenario_parameters)
+    if smoke_ddpm_enabled():
+        return generate_smoke_ddpm_response(
+            path_count=params.path_count,
+            horizon=params.horizon,
+        )
+
     returns = _generate_return_paths(params, user_request, retrieved_context)
     cumulative_prices = START_PRICES[None, None, :] * np.cumprod(1.0 + returns, axis=1)
 

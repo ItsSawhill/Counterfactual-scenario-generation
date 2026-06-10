@@ -210,6 +210,25 @@ python run_counterfactual_pipeline.py --smoke
 
 Smoke mode writes to `counterfactual_data_build/smoke/` and avoids overwriting full-run artifacts.
 
+### Smoke Checkpoint-Backed Backend Inference
+
+After smoke artifacts exist, the backend can optionally use the smoke checkpoint for `/simulate`:
+
+```bash
+SMOKE_DDPM_ENABLED=1 uvicorn backend.main:app --reload
+```
+
+This is a Phase 3A plumbing proof, not full research DDPM inference.
+
+- It is SPY-only.
+- It loads `counterfactual_data_build/smoke/outputs/checkpoints/conditional_ddpm_smoke_best.pt`.
+- It uses the last `C_test_smoke.npy` condition window.
+- It caps `path_count` at `128`.
+- It caps horizon at the smoke model horizon, currently `10`.
+- It ignores `inflation`, `interest_rate`, and RAG context for model conditioning.
+
+When enabled successfully, `/simulate` returns `generator_type: "smoke_ddpm"` and `ddpm_enabled: true`. Without `SMOKE_DDPM_ENABLED=1`, the backend remains in fallback simulation mode.
+
 Run the notebook sequence:
 
 ```bash
