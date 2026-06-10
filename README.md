@@ -169,17 +169,27 @@ npm install
 
 ## Run The Research Pipeline
 
-Validate local setup:
+Validate local setup and print artifact readiness:
 
 ```bash
 python pipeline_preflight_check.py
 ```
+
+Default preflight mode warns about missing DDPM artifacts but exits `0` when source files and packages are available. This is intentional because the fallback FastAPI/React demo can run without processed data or checkpoints.
 
 Skip external connectivity checks:
 
 ```bash
 python pipeline_preflight_check.py --skip-network
 ```
+
+Require DDPM artifacts to exist:
+
+```bash
+python pipeline_preflight_check.py --strict
+```
+
+Strict mode exits nonzero if required DDPM artifacts are missing, including processed data, checkpoint directories, the best checkpoint, or generated sample directories.
 
 Run the notebook sequence:
 
@@ -197,6 +207,8 @@ python run_counterfactual_pipeline.py --stop-after retrain_upgraded_ddpm.ipynb
 The full notebook pipeline downloads live data, writes processed artifacts, trains a model, writes checkpoints, evaluates samples, and produces generated outputs. Those generated artifacts are ignored by git.
 
 ## Run The Demo App
+
+This mode is a fallback simulation demo. It does not load DDPM checkpoints and does not perform real backend diffusion inference yet.
 
 Start the backend:
 
@@ -216,7 +228,11 @@ Start the frontend:
 npm run dev
 ```
 
-The frontend expects the backend at `http://127.0.0.1:8000`.
+The frontend defaults to `http://127.0.0.1:8000`. Override the backend URL with Vite environment configuration:
+
+```bash
+VITE_API_BASE_URL=http://127.0.0.1:8000 npm run dev
+```
 
 Example fallback simulation request:
 

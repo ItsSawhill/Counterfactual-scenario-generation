@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -21,10 +23,21 @@ from backend.rag.schemas import (
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+logger = logging.getLogger("counterfactual_api")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.warning("/simulate is running in fallback simulation mode.")
+    logger.warning("DDPM artifacts are not loaded by this backend yet; checkpoint-backed inference is not implemented.")
+    yield
+
+
 app = FastAPI(
     title="Counterfactual Financial Scenario Generation API",
     version="0.1.0",
     description="Lightweight RAG and scenario-generation integration layer.",
+    lifespan=lifespan,
 )
 
 
@@ -80,6 +93,7 @@ def generate_with_context(request: GenerateWithContextRequest) -> GenerateWithCo
         generated_scenario=generated,
         metadata={
             "generator_type": generated["metadata"]["generator_type"],
+            "ddpm_enabled": generated["ddpm_enabled"],
             "retrieved_context_count": len(rag_response.contexts),
             "project_root": str(PROJECT_ROOT),
         },

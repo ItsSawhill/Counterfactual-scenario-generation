@@ -53,3 +53,5 @@ class ScenarioGenerationResponse(BaseModel):
     live_state: LiveStateMeta
     metadata: dict[str, Any]
     fallback_generator_used: bool
+    generator_type: str
+    ddpm_enabled: bool

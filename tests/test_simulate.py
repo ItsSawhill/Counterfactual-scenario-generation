@@ -26,3 +26,6 @@ def test_simulate_returns_frontend_compatible_json():
     assert len(payload["return_scaler_scale"]) == 5
     assert payload["horizon"] == 15
     assert payload["path_count"] == 24
+    assert payload["generator_type"] == "fallback_simulation"
+    assert payload["ddpm_enabled"] is False
+    assert payload["fallback_generator_used"] is True

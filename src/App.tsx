@@ -20,7 +20,10 @@ import type {
   SimulationStatus,
 } from "./types/simulation";
 
-const API_BASE_URL = "http://127.0.0.1:8000";
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+const API_BASE_URL = configuredApiBaseUrl
+  ? configuredApiBaseUrl.replace(/\/+$/, "")
+  : "http://127.0.0.1:8000";
 const FALLBACK_MODEL_HORIZON = 30;
 
 function parseDateLabel(value?: string): Date | null {

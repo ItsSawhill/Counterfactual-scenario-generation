@@ -84,7 +84,8 @@ def generate_scenario(
         model_horizon=max(params.horizon, 30),
         live_state=build_live_state_meta(),
         metadata={
-            "generator_type": "deterministic_fallback",
+            "generator_type": "fallback_simulation",
+            "ddpm_enabled": False,
             "notes": [
                 "This response currently uses fallback stochastic logic shaped to the frontend contract.",
                 "Notebook-based DDPM inference should replace the return generation block in backend/model/scenario_generator.py.",
@@ -93,6 +94,8 @@ def generate_scenario(
             "context_count": len(retrieved_context or []),
         },
         fallback_generator_used=True,
+        generator_type="fallback_simulation",
+        ddpm_enabled=False,
     )
     return response.model_dump()
 

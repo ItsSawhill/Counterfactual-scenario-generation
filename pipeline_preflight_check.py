@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 import importlib.util
 import os
 import socket
@@ -42,6 +43,48 @@ NETWORK_HOSTS = {
     "Yahoo Finance": ("query1.finance.yahoo.com", 443),
 }
 
+DDPM_ARTIFACTS = [
+    (
+        "Processed data directory",
+        ARTIFACT_ROOT / "processed",
+        True,
+        "Run release_aware_macro_loader.ipynb, market_state_and_alignment_builder.ipynb, and training_prep_for_upgraded_ddpm.ipynb.",
+    ),
+    (
+        "Checkpoint directory",
+        ARTIFACT_ROOT / "outputs" / "checkpoints",
+        True,
+        "Run retrain_upgraded_ddpm.ipynb.",
+    ),
+    (
+        "Best DDPM checkpoint",
+        ARTIFACT_ROOT / "outputs" / "checkpoints" / "conditional_ddpm_upgraded_best.pt",
+        True,
+        "Run retrain_upgraded_ddpm.ipynb to create the trained checkpoint.",
+    ),
+    (
+        "Generated samples directory",
+        ARTIFACT_ROOT / "outputs" / "generated_samples",
+        True,
+        "Run retrain_upgraded_ddpm.ipynb and evaluate_upgraded_ddpm.ipynb.",
+    ),
+    (
+        "RAG vector store directory",
+        ROOT / ".rag_store",
+        False,
+        "Start the backend and run POST /rag/ingest when retrieval endpoints are needed.",
+    ),
+]
+
+
+@dataclass(frozen=True)
+class ArtifactStatus:
+    label: str
+    path: Path
+    exists: bool
+    required_for_ddpm: bool
+    hint: str
+
 
 def check_required_files() -> list[str]:
     issues: list[str] = []
@@ -73,6 +116,27 @@ def check_network(timeout_seconds: float = 3.0) -> list[str]:
     return issues
 
 
+def check_artifacts() -> list[ArtifactStatus]:
+    return [
+        ArtifactStatus(
+            label=label,
+            path=path,
+            exists=path.exists(),
+            required_for_ddpm=required_for_ddpm,
+            hint=hint,
+        )
+        for label, path, required_for_ddpm, hint in DDPM_ARTIFACTS
+    ]
+
+
+def missing_required_ddpm_artifacts(artifact_statuses: list[ArtifactStatus]) -> list[ArtifactStatus]:
+    return [
+        status
+        for status in artifact_statuses
+        if status.required_for_ddpm and not status.exists
+    ]
+
+
 def ensure_output_dirs() -> list[Path]:
     created = [
         ARTIFACT_ROOT / "processed" / "macro",
@@ -97,17 +161,39 @@ def print_section(title: str) -> None:
     print("-" * len(title))
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Preflight checks for the upgraded counterfactual pipeline.")
     parser.add_argument(
         "--skip-network",
         action="store_true",
         help="Skip network reachability checks for FRED and Yahoo Finance.",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit nonzero when required DDPM artifacts are missing. Default mode warns so the fallback demo can still run.",
+    )
+    args = parser.parse_args(argv)
 
     print(f"Workspace: {ROOT}")
     print(f"Python: {sys.executable}")
+
+    print_section("Artifact Readiness")
+    artifact_statuses = check_artifacts()
+    for status in artifact_statuses:
+        relative_path = status.path
+        try:
+            relative_path = status.path.relative_to(ROOT)
+        except ValueError:
+            pass
+        if status.exists:
+            print(f"[PASS] {status.label}: {relative_path}")
+        elif status.required_for_ddpm:
+            print(f"[MISSING] {status.label}: {relative_path}")
+            print(f"         {status.hint}")
+        else:
+            print(f"[WARN] {status.label}: {relative_path}")
+            print(f"       {status.hint}")
 
     created_dirs = ensure_output_dirs()
     print_section("Output Directories")
@@ -157,10 +243,22 @@ def main() -> int:
         network_issues = []
 
     has_errors = bool(file_issues or missing_packages)
+    strict_artifact_errors = missing_required_ddpm_artifacts(artifact_statuses)
     print_section("Summary")
     if has_errors:
         print("Preflight found blockers. Fix the missing files and packages before running the full pipeline.")
         return 1
+
+    if args.strict and strict_artifact_errors:
+        print("Strict preflight failed. Required DDPM artifacts are missing:")
+        for status in strict_artifact_errors:
+            print(f"- {status.label}: {status.path}")
+        return 1
+
+    if strict_artifact_errors:
+        print("Preflight passed for source/package setup, but DDPM artifacts are missing.")
+        print("Fallback FastAPI/React demo mode can still run. Use --strict to fail on missing DDPM artifacts.")
+        return 0
 
     if network_issues:
         print("Preflight passed with warnings. Package and file setup is fine, but network access may block live data downloads.")

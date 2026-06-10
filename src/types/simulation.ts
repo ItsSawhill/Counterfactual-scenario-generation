@@ -34,6 +34,8 @@ export interface SimulationResponse {
   path_count?: number;
   model_horizon?: number;
   live_state?: LiveStateMeta;
+  generator_type?: "fallback_simulation" | string;
+  ddpm_enabled?: boolean;
 }
 
 export interface SimulationBundle {
