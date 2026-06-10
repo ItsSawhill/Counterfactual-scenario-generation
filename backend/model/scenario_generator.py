@@ -57,7 +57,7 @@ def _generate_return_paths(params: ScenarioParameters, user_request: str, retrie
     # Fallback generator:
     # This approximates realistic cross-asset returns for UI and API integration.
     # TODO: Replace this block with extracted DDPM inference from
-    # live_counterfactual_lab_v1.ipynb / realtime_counterfactual_generation_system.ipynb.
+    # live_counterfactual_lab_v1.ipynb.
     horizon_profile = np.linspace(0.95, 1.05, params.horizon, dtype=float)[None, :, None]
     drift = asset_drift[None, None, :] * horizon_profile
     vol = asset_vol[None, None, :]

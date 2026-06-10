@@ -1,14 +1,20 @@
 # RAG
 
-## What RAG Does In This Project
+## Current Status
 
-The RAG layer retrieves relevant local project context before scenario generation or evaluation. Instead of sending a scenario request directly into a model flow without context, the backend can first search:
+The RAG layer retrieves local project-document context. It does not currently condition the trained DDPM model.
+
+RAG is useful here as a document lookup layer for methodology, assumptions, architecture notes, and prior result summaries. It is not yet a retrieval-augmented diffusion system.
+
+## What RAG Reads
+
+By default, ingestion reads:
 
 - `README.md`
-- `docs/`
-- optional local research material under `data/context/`
+- files under `docs/`
+- optional text-like files under `data/context/` if that directory exists
 
-This gives the API a lightweight memory of methodology, architecture, assumptions, and prior evaluation notes.
+Configuration lives in `configs/rag_config.yaml`.
 
 ## Architecture
 
@@ -17,48 +23,60 @@ flowchart LR
     A[README + docs + optional data/context] --> B[Chunking]
     B --> C[SentenceTransformer Embeddings]
     C --> D[FAISS Vector Store]
-    E[User Scenario Request] --> F[FastAPI /rag/query]
+    E[User Query] --> F[FastAPI /rag/query]
     D --> F
-    F --> G[Retrieved Context Chunks]
-    G --> H[/generate-with-context]
-    H --> I[Scenario Generation Placeholder<br/>or future DDPM inference module]
+    F --> G[Retrieved Document Chunks]
+    H[/generate-with-context] --> I[Fallback Simulation]
+    G --> H
 ```
 
-## How Ingestion Works
+## Ingestion
 
-1. `POST /rag/ingest` loads config from `configs/rag_config.yaml`.
-2. The ingester reads `README.md` plus text-like files under configured source directories.
-3. Documents are normalized and chunked using `chunk_size` and `chunk_overlap`.
-4. Chunk embeddings are created with a local sentence-transformer model.
-5. Embeddings are stored in a local FAISS index, with chunk metadata saved alongside it.
+`POST /rag/ingest`:
 
-By default, the vector store is written to `.rag_store/`, which is ignored by git.
+1. loads `configs/rag_config.yaml`
+2. reads configured source documents
+3. chunks text
+4. embeds chunks with `sentence-transformers/all-MiniLM-L6-v2`
+5. writes a FAISS index and metadata to `.rag_store/`
 
-## How Retrieval Works
+`.rag_store/` is ignored by git.
 
-1. `POST /rag/query` embeds the incoming query.
-2. The retriever runs similarity search against the local FAISS index.
-3. The API returns the top matching chunks with:
-   - chunk text
-   - source filename
-   - similarity score
+## Retrieval
 
-## How It Connects To Financial Scenario Generation
+`POST /rag/query`:
 
-The current repository keeps most inference logic in notebooks, especially:
+1. embeds the query
+2. searches the local FAISS index
+3. returns top matching chunks with text, source, and similarity score
 
-- `live_counterfactual_lab_v1.ipynb`
-- `realtime_counterfactual_generation_system.ipynb`
+If `.rag_store/` is missing, querying fails with a clear error asking the user to run ingestion first.
 
-The new `POST /generate-with-context` route already retrieves relevant context and returns it with the user request. The final production integration step is to extract scenario inference into an importable Python module and call it from the endpoint after retrieval.
+## `/generate-with-context`
 
-The backend now routes that request through `backend/model/scenario_generator.py`. At the moment this uses a documented fallback generator that preserves the frontend/backend contract until DDPM inference is extracted from the notebooks.
+`POST /generate-with-context` currently:
 
-This keeps the RAG layer additive:
+1. retrieves local document chunks
+2. returns those chunks alongside the generated scenario response
+3. passes retrieved text into the fallback simulator
 
-- no notebook rewrites
-- no frontend changes required
-- clear path toward production inference later
+It does not:
+
+- load a DDPM checkpoint
+- alter DDPM conditioning tensors
+- use retrieval to select model weights
+- provide retrieval-augmented diffusion inference
+
+## Productionization Path
+
+To make RAG materially affect model generation, the backend first needs real DDPM inference. After that, retrieved context could be used to:
+
+- constrain scenario parameters
+- choose scenario templates
+- annotate outputs with supporting methodology
+- eventually influence an explicit shock-conditioning vector
+
+That is future work.
 
 ## Example API Calls
 

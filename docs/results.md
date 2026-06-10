@@ -1,59 +1,82 @@
 # Results
 
-## Current Tracked Outputs
+## Scope
 
-The repository already includes representative generated artifacts under `counterfactual_data_build/outputs/`, including:
+This page only describes results supported by tracked files in `counterfactual_data_build/outputs/`.
 
-- evaluation figures for `SPY`, `QQQ`, `GC`, `CL`, and `ZN`
-- training history and model configuration tables
-- scenario summary outputs for multiple counterfactual regimes
+The tracked outputs are summaries and figures from prior notebook runs. The processed datasets, NumPy arrays, generated sample arrays, and PyTorch checkpoints used to produce them are not tracked.
+
+## Tracked Output Files
+
+Tracked tables:
+
+- `counterfactual_data_build/outputs/tables/ddpm_upgraded_model_config.json`
+- `counterfactual_data_build/outputs/tables/ddpm_upgraded_training_history.csv`
+- `counterfactual_data_build/outputs/tables/ddpm_upgraded_training_summary.json`
+- `counterfactual_data_build/outputs/tables/scaling_check_summary.csv`
+- `counterfactual_data_build/outputs/tables/time_split_summary.csv`
+- `counterfactual_data_build/outputs/tables/upgraded_ddpm_corr_distance.csv`
+- `counterfactual_data_build/outputs/tables/upgraded_ddpm_vs_gaussian_summary.csv`
+- `counterfactual_data_build/outputs/tables/window_array_shapes.csv`
+
+Tracked figures:
+
+- `counterfactual_data_build/outputs/figures/cl_log_return_upgraded_eval.png`
+- `counterfactual_data_build/outputs/figures/gc_log_return_upgraded_eval.png`
+- `counterfactual_data_build/outputs/figures/qqq_log_return_upgraded_eval.png`
+- `counterfactual_data_build/outputs/figures/spy_log_return_upgraded_eval.png`
+- `counterfactual_data_build/outputs/figures/zn_log_return_upgraded_eval.png`
+- `counterfactual_data_build/outputs/live_counterfactuals/*.png`
 
 ## Training Snapshot
 
-From `ddpm_upgraded_training_summary.json`:
+From `counterfactual_data_build/outputs/tables/ddpm_upgraded_training_summary.json`:
 
 - device: `cpu`
 - epochs completed: `28`
+- max epochs allowed: `35`
 - best epoch: `20`
 - best validation loss: `0.2605`
 - final training loss: `0.1181`
 - final validation loss: `0.2739`
+- train samples: `2715`
+- validation samples: `559`
+
+The summary file references checkpoint paths from the machine where the prior notebook run occurred. Those checkpoint files are not tracked in this repository.
+
+## Window Shapes
+
+From `counterfactual_data_build/outputs/tables/window_array_shapes.csv`:
+
+- `X_train`: `(2715, 30, 5)`
+- `C_train`: `(2715, 30, 88)`
+- `X_val`: `(559, 30, 5)`
+- `C_val`: `(559, 30, 88)`
+- `X_test`: `(560, 30, 5)`
+- `C_test`: `(560, 30, 88)`
+
+These shape summaries are tracked. The corresponding `.npy` arrays are not tracked.
 
 ## Evaluation Highlights
 
-From `upgraded_ddpm_corr_distance.csv`:
+From `counterfactual_data_build/outputs/tables/upgraded_ddpm_corr_distance.csv`:
 
 - DDPM mean absolute correlation distance: `0.0380`
 - Gaussian baseline mean absolute correlation distance: `0.1414`
 
-This suggests the upgraded DDPM preserves cross-asset dependency structure materially better than the Gaussian reference baseline.
+From `counterfactual_data_build/outputs/tables/upgraded_ddpm_vs_gaussian_summary.csv`:
 
-From `upgraded_ddpm_vs_gaussian_summary.csv`:
+- `SPY_log_return` shows lower DDPM mean absolute error and much lower skew/kurtosis error than the Gaussian baseline.
+- `GC_log_return` shows DDPM improvements across several distribution and tail metrics.
+- `CL_log_return` remains difficult; DDPM mean and volatility errors are worse than the Gaussian baseline in the tracked table, while some tail and shape metrics improve.
+- `ZN_log_return` is mixed; some moments favor the Gaussian baseline and others favor DDPM.
 
-- `SPY` shows lower DDPM mean absolute error and much lower skew/kurtosis error than the Gaussian baseline.
-- `GC` shows DDPM improvements across mean error, volatility error, tail quantiles, and Wasserstein distance.
-- `CL` remains the most difficult asset, with heavy tail behavior still challenging for the current model.
-- `ZN` shows mixed results, indicating some moments are competitive while others still favor the Gaussian baseline.
+## Missing Scenario Summary
 
-## Scenario Summary Snapshot
+Earlier documentation referenced `live_counterfactual_summary.csv`. That file is not tracked in this repository. The only tracked live counterfactual outputs are PNG figures under `counterfactual_data_build/outputs/live_counterfactuals/`.
 
-From `live_counterfactual_summary.csv`:
+Do not cite scenario-summary numbers unless the corresponding CSV is regenerated or added as a documented artifact.
 
-- Baseline `SPY` median terminal return is approximately `7.67%`.
-- Baseline `CL` median terminal return is strongly negative, around `-29.08%`.
-- The `growth_scare` scenario increases `GC` median terminal return to roughly `6.10%`, consistent with a defensive tilt.
-- The `hawkish_policy` and `inflation_reacceleration` scenarios leave `CL` deeply negative in the tracked output set, signaling persistent downside pressure in the generated paths.
+## Interpretation
 
-## Suggested Presentation Use
-
-For a recruiter-facing demo, the strongest story is:
-
-1. The pipeline is end-to-end, from release-aware macro ingestion to scenario generation.
-2. The model is evaluated against a simpler statistical baseline rather than presented without controls.
-3. The project includes both research artifacts and a frontend interpretation layer.
-
-## Recommended Next Improvements
-
-- Re-run evaluation with multiple seeds and summarize variance bands.
-- Save small, presentation-ready figures under `outputs/figures/` for polished demos.
-- Export a concise benchmark table for README badges or portfolio screenshots.
+The tracked results support the claim that a prior notebook run trained and evaluated an upgraded conditional DDPM. They do not prove that the current FastAPI backend serves that trained model, because the backend currently uses fallback simulation.

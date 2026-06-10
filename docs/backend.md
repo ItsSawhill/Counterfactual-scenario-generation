@@ -1,13 +1,12 @@
 # Backend
 
+## Current Status
+
+The backend is a FastAPI service that exposes health, RAG, fallback simulation, and frontend-compatible scenario endpoints.
+
+It does **not** currently serve trained DDPM inference. The current path generation code is a deterministic fallback simulator in `backend/model/scenario_generator.py`.
+
 ## Architecture
-
-The backend is a FastAPI service with two additive layers:
-
-1. `backend/rag/`
-   Handles ingestion and retrieval from local project documents.
-2. `backend/model/`
-   Handles scenario generation and frontend-compatible simulation responses.
 
 ```mermaid
 flowchart LR
@@ -17,7 +16,7 @@ flowchart LR
     C --> E
     D --> F[/generate-with-context]
     E --> F
-    F --> G[backend/model/scenario_generator.py]
+    F --> G[backend/model/scenario_generator.py<br/>fallback simulation]
     H[Frontend /simulate request] --> I[/simulate]
     I --> G
 ```
@@ -31,11 +30,9 @@ flowchart LR
 - `POST /simulate`
 - `POST /refresh-live-state`
 
-## Request And Response Examples
+## `/simulate`
 
-### `/simulate`
-
-Request:
+`/simulate` accepts the frontend scenario controls:
 
 ```json
 {
@@ -46,7 +43,7 @@ Request:
 }
 ```
 
-Response shape:
+It returns a frontend-compatible payload:
 
 ```json
 {
@@ -65,42 +62,49 @@ Response shape:
     "cache_status": "fresh",
     "cache_age_seconds": 0,
     "cache_ttl_seconds": 900
-  }
+  },
+  "fallback_generator_used": true
 }
 ```
 
-### `/generate-with-context`
+Current behavior:
 
-This route first retrieves context from the local vector store, then passes:
+- uses handcrafted drift, volatility, and cross-asset correlation assumptions
+- is deterministic for the same input parameters
+- returns paths shaped for the React UI contract
+- does not load `conditional_ddpm_upgraded_best.pt`
+- does not load processed windows or scalers
+- does not fetch live market data for `/refresh-live-state`
 
-- `user_request`
-- `scenario_parameters`
-- `retrieved_context`
+## `/generate-with-context`
 
-into the model-facing generator.
+This route:
 
-## Where RAG Connects
+1. retrieves local document chunks through `backend/rag/retriever.py`
+2. passes those chunks to `backend/model/scenario_generator.py`
+3. returns retrieved context plus fallback-generated paths
 
-RAG is connected in `backend/main.py` before generation:
+The retrieved context currently influences only lightweight heuristic adjustment in the fallback generator. It is not DDPM conditioning.
 
-1. retrieve relevant context
-2. pass context into `backend/model/scenario_generator.py`
-3. return retrieved evidence alongside generated output
+## Planned DDPM Integration
 
-## Where Model Inference Connects
+The productionization step is to replace or wrap `backend/model/scenario_generator.py` with a real inference module that:
 
-The current generator is intentionally a fallback implementation. The correct replacement point is the return-generation block in:
+- imports the notebook DDPM architecture as regular Python code
+- loads `counterfactual_data_build/outputs/checkpoints/conditional_ddpm_upgraded_best.pt`
+- loads model config and scalers
+- builds condition windows from processed/live features
+- returns the existing frontend-compatible response schema
 
-- [backend/model/scenario_generator.py](/Users/sahil/Counterfactual-Financial-Scenario-Generation/backend/model/scenario_generator.py)
+Until that exists, the backend should be described as a demo API with fallback simulation.
 
-The notebook logic that should eventually be extracted lives in:
+## Tests
 
-- `live_counterfactual_lab_v1.ipynb`
-- `realtime_counterfactual_generation_system.ipynb`
+Current tests validate:
 
-## TODOs
+- health endpoint shape
+- `/simulate` response shape
+- graceful missing-vector-store behavior
+- mocked `/generate-with-context` response shape
 
-- Extract DDPM checkpoint loading and conditioning logic into importable Python modules.
-- Replace fallback stochastic path generation with real notebook-derived inference.
-- Add a packaged backend route for scenario-suite generation if the frontend expands beyond `/simulate`.
-- Decide whether retrieved RAG context should influence prompts, scenario constraints, or direct model conditioning.
+They do not validate DDPM checkpoint loading, model quality, or real RAG ingestion.

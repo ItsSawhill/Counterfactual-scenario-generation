@@ -1,24 +1,29 @@
 # Counterfactual Financial Scenario Generation
 
-Counterfactual Financial Scenario Generation is a research-oriented pipeline for building release-aware macro and market datasets, training a conditional diffusion model on cross-asset return windows, evaluating generated scenarios against financial diagnostics, and surfacing the outputs in an interactive scenario lab.
+This repository is a **conditional diffusion research prototype** for financial counterfactual scenario generation. It explores whether a conditional denoising diffusion model can generate realistic multi-asset return paths from release-aware macro data, market-state features, and scenario definitions.
 
-The repository combines:
+Current status, stated plainly:
 
-- a Python notebook pipeline for data assembly, training, evaluation, and scenario generation
-- lightweight orchestration scripts for preflight validation and sequential notebook execution
-- a Vite + React frontend for presenting live-state counterfactual scenarios
+- The DDPM training and evaluation work exists in notebooks.
+- Prior notebook runs produced the tracked result tables and figures under `counterfactual_data_build/outputs/`.
+- The FastAPI + React application currently uses fallback stochastic simulation, not real backend DDPM inference.
+- Real checkpoint-backed backend DDPM inference is a planned productionization step.
+- Processed data, model checkpoints, generated sample arrays, executed notebooks, and the local RAG vector store are not tracked.
 
-## Motivation
+See [ARTIFACTS.md](ARTIFACTS.md) for the missing artifact inventory and what breaks when those artifacts are absent.
 
-Standard Monte Carlo workflows often miss regime structure, macro timing realism, and cross-asset dependency patterns. This project explores whether a conditional denoising diffusion probabilistic model can generate more realistic multi-asset return paths when conditioned on:
+## What This Repository Is
 
-- recent market state
-- release-aware macro observations
-- explicit scenario definitions
+The project combines:
 
-The goal is not just to fit distributions, but to generate decision-useful scenarios for stress testing, policy-shock analysis, and counterfactual portfolio research.
+- notebook-based data, feature, training, evaluation, and scenario-generation workflows
+- lightweight Python orchestration scripts for preflight checks and sequential notebook execution
+- a FastAPI backend with a demo/fallback scenario simulator and local-document RAG endpoints
+- a Vite + React frontend that visualizes scenario paths, risk metrics, and decision-support summaries
 
-## Architecture
+It should currently be described as a **research prototype with a demo application shell**, not as a production platform.
+
+## Current Architecture
 
 ```mermaid
 flowchart LR
@@ -28,88 +33,118 @@ flowchart LR
 
     C --> E[Aligned Feature Panel]
     E --> F[Window Construction<br/>30-step sequences + conditions]
-    F --> G[Conditional 1D DDPM Training]
-    G --> H[Generated Scenario Paths]
-    H --> I[Evaluation Tables + Figures]
-    H --> J[Live Counterfactual Lab]
+    F --> G[Notebook Conditional 1D DDPM Training]
+    G --> H[Notebook Evaluation Artifacts]
+    G --> I[Notebook Live Counterfactual Lab]
 
-    K[Preflight + Runner Scripts] --> C
-    K --> G
-    K --> I
+    J[FastAPI Backend] --> K[Fallback Simulation]
+    K --> L[React Scenario Lab]
+    M[RAG Document Retrieval] --> J
 ```
 
-## Model Workflow
+Important boundary: the notebook DDPM path and the FastAPI demo path are not yet unified. The backend does not currently load the trained DDPM checkpoint.
 
-1. `release_aware_macro_loader.ipynb` builds macro series using release-aware logic, with optional ALFRED vintage enrichment when `FRED_API_KEY` is available.
-2. `market_state_and_alignment_builder.ipynb` combines macro and market series into a synchronized cross-asset panel.
-3. `training_prep_for_upgraded_ddpm.ipynb` creates scaled training, validation, and test windows.
-4. `retrain_upgraded_ddpm.ipynb` trains the upgraded conditional DDPM on five target assets.
-5. `evaluate_upgraded_ddpm.ipynb` compares generated paths with Gaussian baselines using distributional and correlation diagnostics.
-6. `live_counterfactual_lab_v1.ipynb` produces scenario-level outputs for a live exploration workflow.
+## Notebook Model Workflow
 
-## Evaluation Framework
+The main research pipeline is:
 
-The current evaluation artifacts compare the upgraded DDPM against a Gaussian baseline across:
+1. `release_aware_macro_loader.ipynb`
+   Builds release-aware macro features from FRED/ALFRED-style data. If `FRED_API_KEY` is unavailable, it uses release-lag fallback logic.
+2. `market_state_and_alignment_builder.ipynb`
+   Downloads market data, constructs rolling market-state features, and merges them with the macro panel.
+3. `training_prep_for_upgraded_ddpm.ipynb`
+   Builds scaled train, validation, and test windows for targets and conditioning features.
+4. `retrain_upgraded_ddpm.ipynb`
+   Defines and trains the upgraded conditional DDPM.
+5. `evaluate_upgraded_ddpm.ipynb`
+   Compares generated DDPM windows with Gaussian baselines using distributional and correlation diagnostics.
+6. `live_counterfactual_lab_v1.ipynb`
+   Uses notebook-local DDPM inference logic to generate live scenario outputs when the required checkpoint and processed artifacts exist.
 
-- mean and standard deviation error
-- skew and kurtosis error
-- tail quantile error at the 1%, 5%, 95%, and 99% levels
-- Wasserstein distance
-- lag-1 autocorrelation diagnostics
-- cross-asset correlation distance
-- scenario-level downside probability, VaR, and CVaR
+The archived `archive/realtime_counterfactual_generation_system.ipynb` is an older workflow with stale paths and checkpoint names. It is retained for research history, not as the current run path.
 
-Key result snapshots from tracked artifacts:
+## Backend And Frontend Status
 
-- Mean absolute correlation distance: DDPM `0.0380` vs Gaussian baseline `0.1414`
-- Best validation loss: `0.2605` at epoch `20`
-- Training run completed `28` epochs on CPU with a five-asset target universe
+The backend exposes:
 
-See [docs/results.md](docs/results.md) for more detail.
+- `GET /health`
+- `POST /rag/ingest`
+- `POST /rag/query`
+- `POST /generate-with-context`
+- `POST /simulate`
+- `POST /refresh-live-state`
 
-## Results And Figures
+Current `/simulate` behavior:
 
-Generated evaluation figures currently live in `counterfactual_data_build/outputs/figures/` and include asset-specific upgraded evaluation charts for:
+- accepts macro-style inputs such as `inflation`, `interest_rate`, `horizon`, and `path_count`
+- returns frontend-compatible multi-asset return paths
+- uses `backend/model/scenario_generator.py`, which is a deterministic fallback simulator
+- does not load model checkpoints
+- does not use notebook-trained DDPM inference
 
-- `SPY`
-- `QQQ`
-- `GC`
-- `CL`
-- `ZN`
+The React frontend consumes `/simulate` and computes price fans, VaR/CVaR, drawdown, scenario comparisons, and recommendation-style summaries from the returned paths. Those UI analytics are real calculations, but today they are calculated from fallback simulation outputs.
 
-Live scenario outputs are also available under `counterfactual_data_build/outputs/live_counterfactuals/`, including a summary table of baseline and shock-based scenarios.
+## RAG Status
+
+The RAG layer indexes local project documents using sentence-transformer embeddings and FAISS. It retrieves README/docs/context chunks for `/rag/query` and `/generate-with-context`.
+
+RAG currently:
+
+- retrieves document context
+- returns evidence-like chunks with scores
+- passes retrieved text into the fallback generator path
+
+RAG currently does **not**:
+
+- condition the notebook DDPM model
+- alter a trained diffusion checkpoint
+- perform retrieval-augmented diffusion inference
+
+## Tracked Results
+
+Tracked output tables and figures under `counterfactual_data_build/outputs/` come from prior notebook runs. They include:
+
+- model config and training summary tables
+- training history
+- window shape summaries
+- DDPM-vs-Gaussian evaluation summaries
+- cross-asset correlation distance results
+- asset-level evaluation figures for `SPY`, `QQQ`, `GC`, `CL`, and `ZN`
+- live counterfactual PNG figures
+
+The corresponding processed datasets, NumPy arrays, generated samples, and PyTorch checkpoints are intentionally not tracked.
 
 ## Repository Structure
 
 ```text
 .
 ├── README.md
+├── ARTIFACTS.md
 ├── docs/
 │   ├── architecture.md
+│   ├── backend.md
 │   ├── methodology.md
+│   ├── rag.md
 │   └── results.md
-├── configs/
-├── outputs/
-│   ├── figures/
-│   └── metrics/
-├── src/                            # React scenario lab
+├── archive/                         # stale retained research/demo files
+├── backend/                         # FastAPI app, RAG, fallback simulator
+├── src/                             # React scenario lab
 ├── public/
-├── executed_notebooks/             # Generated notebook runs
+├── configs/
 ├── counterfactual_data_build/
-│   ├── processed/                  # Generated aligned datasets and windows
-│   └── outputs/                    # Figures, metrics, checkpoints, samples
-├── build_*_notebook.py             # Notebook generation helpers
-├── pipeline_preflight_check.py     # Environment and file validation
-├── run_counterfactual_pipeline.py  # Sequential notebook runner
-├── *.ipynb                         # Research and pipeline notebooks
+│   └── outputs/                     # tracked summary tables and figures
+├── pipeline_preflight_check.py
+├── run_counterfactual_pipeline.py
+├── build_*_notebook.py
+├── *.ipynb                          # current notebook research pipeline
 ├── dataset_spec_v1.json
 ├── scenario_definitions_v1.csv
 └── ablation_matrix_v1.csv
 ```
 
-## Setup Instructions
+## Setup
 
-### Python Environment
+### Python
 
 ```bash
 python -m venv .venv
@@ -126,27 +161,27 @@ export FRED_API_KEY="your_key_here"
 
 If `FRED_API_KEY` is unset, the macro loader falls back to release-lag approximation mode.
 
-### Frontend Environment
+### Frontend
 
 ```bash
 npm install
 ```
 
-## How To Run
+## Run The Research Pipeline
 
-### 1. Validate the workspace
+Validate local setup:
 
 ```bash
 python pipeline_preflight_check.py
 ```
 
-Skip external connectivity checks if needed:
+Skip external connectivity checks:
 
 ```bash
 python pipeline_preflight_check.py --skip-network
 ```
 
-### 2. Run the notebook pipeline
+Run the notebook sequence:
 
 ```bash
 python run_counterfactual_pipeline.py
@@ -159,71 +194,31 @@ python run_counterfactual_pipeline.py --start-at training_prep_for_upgraded_ddpm
 python run_counterfactual_pipeline.py --stop-after retrain_upgraded_ddpm.ipynb
 ```
 
-### 3. Launch the frontend
+The full notebook pipeline downloads live data, writes processed artifacts, trains a model, writes checkpoints, evaluates samples, and produces generated outputs. Those generated artifacts are ignored by git.
 
-```bash
-npm run dev
-```
+## Run The Demo App
 
-The frontend expects a simulation API on `http://127.0.0.1:8000`. That backend is referenced by the UI but is not fully versioned in this repository, so the current frontend should be treated as a presentation layer for the scenario lab rather than a standalone deployed app.
-
-## RAG-Enhanced Scenario Generation
-
-The repository now includes a lightweight FastAPI-based retrieval layer under `backend/` that can ingest local project documents, build a local vector store, and retrieve relevant macro or methodological context before a scenario request is generated or evaluated.
-
-Endpoints:
-
-- `GET /health`
-- `POST /rag/ingest`
-- `POST /rag/query`
-- `POST /generate-with-context`
-
-Run the backend:
+Start the backend:
 
 ```bash
 uvicorn backend.main:app --reload
 ```
 
-Run with Docker:
+Or with Docker:
 
 ```bash
 docker compose up --build
 ```
 
-Example ingest:
+Start the frontend:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/rag/ingest \
-  -H "Content-Type: application/json" \
-  -d '{"force_rebuild": true}'
+npm run dev
 ```
 
-Example retrieval query:
+The frontend expects the backend at `http://127.0.0.1:8000`.
 
-```bash
-curl -X POST http://127.0.0.1:8000/rag/query \
-  -H "Content-Type: application/json" \
-  -d '{"query": "What happens if inflation rises while unemployment increases?", "top_k": 5}'
-```
-
-Example context-aware generation:
-
-```bash
-curl -X POST http://127.0.0.1:8000/generate-with-context \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_request": "Generate a stagflation-oriented scenario with tighter policy and weaker labor conditions.",
-    "top_k": 5,
-    "scenario_parameters": {
-      "inflation": 0.055,
-      "interest_rate": 0.0525,
-      "horizon": 30,
-      "path_count": 128
-    }
-  }'
-```
-
-Example frontend-compatible simulation:
+Example fallback simulation request:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/simulate \
@@ -236,7 +231,16 @@ curl -X POST http://127.0.0.1:8000/simulate \
   }'
 ```
 
-The current backend now includes a model-facing generation module and a frontend-compatible `/simulate` route. Until DDPM inference is extracted from the notebooks, scenario outputs may use fallback stochastic logic designed to preserve the API contract and UI behavior.
+## Productionization Gap
+
+The major unfinished engineering step is to extract notebook DDPM inference into importable backend code. That future work should:
+
+- load `ddpm_upgraded_model_config.json`
+- load scalers from `counterfactual_data_build/processed/windows/scalers.json`
+- load `counterfactual_data_build/outputs/checkpoints/conditional_ddpm_upgraded_best.pt`
+- construct live/scenario condition windows
+- return the same response contract currently served by `/simulate`
+- make fallback simulation explicit and optional
 
 ## Technologies Used
 
@@ -250,19 +254,24 @@ The current backend now includes a model-facing generation module and a frontend
 - matplotlib
 - yfinance
 - FRED / ALFRED data access patterns
+- FastAPI
+- FAISS
+- sentence-transformers
 - TypeScript
 - React
 - Vite
 - Recharts
+- Docker
 
-## Contributors
+## Author
 
-- Siddharth Dandu (`sdandu-UMD`)
+- Sahil Parab
 
 ## Future Work
 
-- Version the backend API used by the React scenario lab
-- Move notebook logic into importable Python modules for easier testing
-- Add configuration-driven experiment management under `configs/`
-- Store large generated datasets and checkpoints outside git with documented retrieval steps
-- Add reproducible benchmark reports for multiple seeds and market regimes
+- Extract DDPM architecture and inference into importable backend modules
+- Add artifact checks and a documented artifact retrieval/regeneration path
+- Add end-to-end tests for real checkpoint-backed inference
+- Pin Python dependencies or add a constraints file
+- Make frontend API URL configurable
+- Add reproducible benchmark reports across seeds and regimes

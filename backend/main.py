@@ -86,7 +86,7 @@ def generate_with_context(request: GenerateWithContextRequest) -> GenerateWithCo
         fallback_generator_used=generated["fallback_generator_used"],
         integration_notes=[
             "Current model-facing generation is connected through backend/model/scenario_generator.py.",
-            "The fallback stochastic generator should be replaced with extracted DDPM inference from live_counterfactual_lab_v1.ipynb or realtime_counterfactual_generation_system.ipynb.",
+            "The fallback stochastic generator should be replaced with extracted DDPM inference from live_counterfactual_lab_v1.ipynb; archive/realtime_counterfactual_generation_system.ipynb is retained only as a stale legacy reference.",
             "Retrieved RAG context is already passed into the generator and can be upgraded from heuristic guidance to true model conditioning logic later.",
         ],
     )
