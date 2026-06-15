@@ -118,6 +118,43 @@
   font-size: 0.84rem;
 }
 
+.generator-status-card {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.generator-status-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.generator-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.generator-status-grid .summary-value {
+  margin-top: 4px;
+  font-size: 0.94rem;
+}
+
+.generator-status-grid .summary-subtle {
+  margin-top: 0;
+}
+
+.generator-assets {
+  min-width: 0;
+}
+
+.generator-assets .summary-value {
+  overflow-wrap: anywhere;
+}
+
 .status-label {
   display: inline-block;
   margin: 0;
@@ -1267,6 +1304,7 @@
 
   .workspace-grid,
   .header-summary-grid,
+  .generator-status-grid,
   .metric-strip,
   .metric-inline-strip,
   .distribution-marker-strip,

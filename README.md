@@ -78,11 +78,51 @@ Current `/simulate` behavior:
 
 - accepts macro-style inputs such as `inflation`, `interest_rate`, `horizon`, and `path_count`
 - returns frontend-compatible multi-asset return paths
-- uses `backend/model/scenario_generator.py`, which is a deterministic fallback simulator
-- does not load model checkpoints
-- does not use notebook-trained DDPM inference
+- delegates generator selection through `backend/model/generator_registry.py`
+- defaults to the deterministic fallback simulator unless smoke mode is explicitly enabled
+- can use the smoke checkpoint-backed generator for plumbing validation when configured
 
 The React frontend consumes `/simulate` and computes price fans, VaR/CVaR, drawdown, scenario comparisons, and recommendation-style summaries from the returned paths. Those UI analytics are real calculations, but today they are calculated from fallback simulation outputs.
+
+### Generator Registry Architecture
+
+Backend API routes call `backend/model/scenario_generator.py`, which is now a stable facade over `backend/model/generator_registry.py`. The registry owns inference-engine selection, artifact status reporting, and the common generator contract:
+
+```text
+FastAPI routes
+    |
+    v
+backend/model/scenario_generator.py
+    |
+    v
+backend/model/generator_registry.py
+    |-- FallbackSimulationGenerator
+    |-- SmokeDDPMGenerator
+    `-- FullDDPMGenerator (future)
+```
+
+Every generator exposes:
+
+- `load()` for model/artifact preparation
+- `generate(inflation, interest_rate, horizon, path_count, ...)`
+- `artifact_status()` for startup logging
+- a standardized `ScenarioGenerationResponse` payload
+
+Supported modes:
+
+```bash
+GENERATOR_MODE=fallback uvicorn backend.main:app --reload
+GENERATOR_MODE=smoke_ddpm uvicorn backend.main:app --reload
+```
+
+If `GENERATOR_MODE` is unset, the backend preserves the earlier behavior:
+
+- `SMOKE_DDPM_ENABLED=1` selects `smoke_ddpm`
+- otherwise `/simulate` uses `fallback_simulation`
+
+Startup logs report the selected generator, artifact status, and whether DDPM is enabled.
+
+The future `full_ddpm` path should be added as another generator class in `backend/model/generator_registry.py`, registered in mode selection, and made to return the same response shape. API routes should not need changes.
 
 ## RAG Status
 
@@ -215,6 +255,12 @@ Smoke mode writes to `counterfactual_data_build/smoke/` and avoids overwriting f
 After smoke artifacts exist, the backend can optionally use the smoke checkpoint for `/simulate`:
 
 ```bash
+GENERATOR_MODE=smoke_ddpm uvicorn backend.main:app --reload
+```
+
+For compatibility with Phase 3A, this still works when `GENERATOR_MODE` is unset:
+
+```bash
 SMOKE_DDPM_ENABLED=1 uvicorn backend.main:app --reload
 ```
 
@@ -227,7 +273,7 @@ This is a Phase 3A plumbing proof, not full research DDPM inference.
 - It caps horizon at the smoke model horizon, currently `10`.
 - It ignores `inflation`, `interest_rate`, and RAG context for model conditioning.
 
-When enabled successfully, `/simulate` returns `generator_type: "smoke_ddpm"` and `ddpm_enabled: true`. Without `SMOKE_DDPM_ENABLED=1`, the backend remains in fallback simulation mode.
+When enabled successfully, `/simulate` returns `generator_type: "smoke_ddpm"` and `ddpm_enabled: true`. Without `GENERATOR_MODE=smoke_ddpm` or legacy `SMOKE_DDPM_ENABLED=1`, the backend remains in fallback simulation mode.
 
 Run the notebook sequence:
 

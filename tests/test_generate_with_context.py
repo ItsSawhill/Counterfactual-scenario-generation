@@ -7,6 +7,7 @@ client = TestClient(app)
 
 
 def test_generate_with_context_returns_scenario_and_context(monkeypatch):
+    monkeypatch.delenv("GENERATOR_MODE", raising=False)
     monkeypatch.delenv("SMOKE_DDPM_ENABLED", raising=False)
     from backend import main
     from backend.rag.schemas import QueryResponse, RetrievedContext

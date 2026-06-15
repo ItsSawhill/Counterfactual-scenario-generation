@@ -81,6 +81,25 @@ function formatCacheAge(seconds: number | undefined): string {
   return `${minutes}m ${remainingSeconds}s`;
 }
 
+function formatGeneratorMode(value: string | undefined): string {
+  if (!value) {
+    return "Pending";
+  }
+
+  return value
+    .split("_")
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
+}
+
+function formatFlag(value: boolean | undefined): string {
+  if (value === undefined) {
+    return "Pending";
+  }
+
+  return value ? "Yes" : "No";
+}
+
 function App() {
   const [request, setRequest] = useState<SimulationRequest>(BASELINE_SCENARIO.values);
   const [selectedAsset, setSelectedAsset] = useState(0);
@@ -178,6 +197,23 @@ function App() {
     [simulationBundle, request, selectedAsset],
   );
   const activeAsset = simulationBundle?.custom.assets[selectedAsset] ?? "SPY";
+  const generatorMetadata = simulationBundle?.custom.metadata;
+  const generatorType =
+    simulationBundle?.custom.generator_type ?? generatorMetadata?.generator_type;
+  const ddpmEnabled =
+    simulationBundle?.custom.ddpm_enabled ?? generatorMetadata?.ddpm_enabled;
+  const fallbackGeneratorUsed =
+    simulationBundle?.custom.fallback_generator_used ??
+    generatorMetadata?.fallback_generator_used;
+  const isSmokeMode = generatorMetadata?.smoke_mode === true;
+  const ignoredFields = generatorMetadata?.ignored_fields ?? [];
+  const generatorAssets =
+    (generatorMetadata?.assets?.length
+      ? generatorMetadata.assets
+      : simulationBundle?.custom.assets) ?? [];
+  const generatorAssetsLabel = generatorAssets.length
+    ? generatorAssets.map(formatAssetLabel).join(", ")
+    : "Pending";
   const scenarioLabel = describeRegime(request);
   const marketDataDateLabel = formatDateLabel(
     liveStateMeta?.market_data_as_of,
@@ -311,6 +347,46 @@ function App() {
             <span className="status-label">Last Run</span>
             <strong className="summary-value">{lastRunTimeLabel}</strong>
             <span className="summary-subtle">{lastRunDateLabel}</span>
+          </div>
+          <div className="summary-card generator-status-card">
+            <div className="generator-status-head">
+              <span className="status-label">Generator Mode</span>
+              <span
+                className={`status-pill ${
+                  ddpmEnabled ? "status-positive" : "status-neutral"
+                }`}
+              >
+                {formatGeneratorMode(generatorType)}
+              </span>
+            </div>
+            <div className="generator-status-grid">
+              <span>
+                <span className="summary-subtle">DDPM Enabled</span>
+                <strong className="summary-value">
+                  {formatFlag(ddpmEnabled)}
+                </strong>
+              </span>
+              <span>
+                <span className="summary-subtle">Fallback Used</span>
+                <strong className="summary-value">
+                  {formatFlag(fallbackGeneratorUsed)}
+                </strong>
+              </span>
+              <span className="generator-assets">
+                <span className="summary-subtle">Assets</span>
+                <strong className="summary-value">{generatorAssetsLabel}</strong>
+              </span>
+            </div>
+            {isSmokeMode ? (
+              <span className="summary-subtle">
+                SPY-only smoke checkpoint inference
+              </span>
+            ) : null}
+            {ignoredFields.length ? (
+              <span className="summary-subtle">
+                Ignored in smoke mode: {ignoredFields.join(", ")}
+              </span>
+            ) : null}
           </div>
         </div>
       </header>

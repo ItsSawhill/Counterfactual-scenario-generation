@@ -24,6 +24,16 @@ export interface LiveStateMeta {
   cache_ttl_seconds?: number;
 }
 
+export interface SimulationMetadata {
+  generator_type?: "fallback_simulation" | "smoke_ddpm" | string;
+  ddpm_enabled?: boolean;
+  fallback_generator_used?: boolean;
+  smoke_mode?: boolean;
+  ignored_fields?: string[];
+  assets?: string[];
+  [key: string]: unknown;
+}
+
 export interface SimulationResponse {
   paths: number[][][];
   assets: string[];
@@ -34,8 +44,10 @@ export interface SimulationResponse {
   path_count?: number;
   model_horizon?: number;
   live_state?: LiveStateMeta;
-  generator_type?: "fallback_simulation" | string;
+  metadata?: SimulationMetadata;
+  generator_type?: "fallback_simulation" | "smoke_ddpm" | string;
   ddpm_enabled?: boolean;
+  fallback_generator_used?: boolean;
 }
 
 export interface SimulationBundle {

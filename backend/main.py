@@ -8,9 +8,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.model import generate_scenario, simulate_frontend_request
+from backend.model.generator_registry import get_generator_runtime_status
 from backend.model.schemas import LiveStateMeta, ScenarioParameters
-from backend.model.scenario_generator import smoke_ddpm_enabled
-from backend.model.smoke_inference import smoke_artifact_status
 from backend.rag.ingest import ingest_project_documents, load_rag_config
 from backend.rag.retriever import retrieve_context
 from backend.rag.schemas import (
@@ -31,13 +30,10 @@ logger = logging.getLogger("counterfactual_api")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.warning("/simulate is running in fallback simulation mode.")
-    logger.warning("DDPM artifacts are not loaded by this backend yet; checkpoint-backed inference is not implemented.")
-    if smoke_ddpm_enabled():
-        logger.warning("SMOKE_DDPM_ENABLED=1: /simulate will use smoke checkpoint-backed inference when artifacts are present.")
-        logger.warning("Smoke artifact readiness: %s", smoke_artifact_status())
-    else:
-        logger.warning("SMOKE_DDPM_ENABLED is not set; smoke checkpoint-backed inference is disabled.")
+    generator_status = get_generator_runtime_status()
+    logger.warning("Selected generator: %s", generator_status["selected_generator"])
+    logger.warning("Artifact status: %s", generator_status["artifact_status"])
+    logger.warning("DDPM enabled: %s", generator_status["ddpm_enabled"])
     yield
 
 

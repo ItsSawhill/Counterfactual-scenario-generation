@@ -8,6 +8,7 @@ client = TestClient(app)
 
 
 def test_simulate_returns_frontend_compatible_json(monkeypatch):
+    monkeypatch.delenv("GENERATOR_MODE", raising=False)
     monkeypatch.delenv("SMOKE_DDPM_ENABLED", raising=False)
     response = client.post(
         "/simulate",
@@ -39,6 +40,7 @@ def test_simulate_smoke_ddpm_mode_returns_checkpoint_backed_metadata(monkeypatch
 
         pytest.skip("Smoke artifacts are missing. Run `python run_counterfactual_pipeline.py --smoke`.")
 
+    monkeypatch.delenv("GENERATOR_MODE", raising=False)
     monkeypatch.setenv("SMOKE_DDPM_ENABLED", "1")
     response = client.post(
         "/simulate",
@@ -63,3 +65,20 @@ def test_simulate_smoke_ddpm_mode_returns_checkpoint_backed_metadata(monkeypatch
     assert len(payload["paths"]) == 128
     assert len(payload["paths"][0]) == 10
     assert len(payload["paths"][0][0]) == 1
+
+
+def test_simulate_invalid_generator_mode_returns_clear_error(monkeypatch):
+    monkeypatch.setenv("GENERATOR_MODE", "full_ddpm")
+
+    response = client.post(
+        "/simulate",
+        json={
+            "inflation": 0.03,
+            "interest_rate": 0.04,
+            "horizon": 15,
+            "path_count": 24,
+        },
+    )
+
+    assert response.status_code == 503
+    assert "Invalid GENERATOR_MODE='full_ddpm'" in response.json()["detail"]
