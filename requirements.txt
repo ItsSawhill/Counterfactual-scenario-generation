@@ -5,6 +5,7 @@ scipy
 scikit-learn
 matplotlib
 torch
+mlflow
 
 # Data access
 yfinance

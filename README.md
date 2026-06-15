@@ -275,6 +275,42 @@ This is a Phase 3A plumbing proof, not full research DDPM inference.
 
 When enabled successfully, `/simulate` returns `generator_type: "smoke_ddpm"` and `ddpm_enabled: true`. Without `GENERATOR_MODE=smoke_ddpm` or legacy `SMOKE_DDPM_ENABLED=1`, the backend remains in fallback simulation mode.
 
+### Smoke MLflow Tracking
+
+Smoke training logs a local MLflow run by default. No remote MLflow server is required.
+
+```bash
+python run_counterfactual_pipeline.py --smoke
+```
+
+The smoke run uses:
+
+- experiment name: `counterfactual-scenario-generation`
+- run name: `smoke-ddpm`
+- local tracking directory: `mlruns/`
+
+The run logs smoke generator parameters, DDPM dimensions, diffusion steps, epoch count, checkpoint/scaler/sample paths, final train loss, runtime, split window counts, and smoke artifacts such as config JSON, scalers, checkpoint, generated samples when small enough, and smoke summary files.
+
+Disable local tracking when needed:
+
+```bash
+python run_counterfactual_pipeline.py --smoke --disable-mlflow
+```
+
+Open the local MLflow UI from the project root:
+
+```bash
+mlflow ui
+```
+
+If your MLflow version requires explicit file-store opt-in, run:
+
+```bash
+MLFLOW_ALLOW_FILE_STORE=true mlflow ui
+```
+
+Then visit the URL printed by MLflow, usually `http://127.0.0.1:5000`. The `mlruns/` directory is local-only and ignored by git.
+
 Run the notebook sequence:
 
 ```bash

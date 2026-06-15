@@ -72,6 +72,7 @@ counterfactual_data_build/outputs/generated_samples/
 counterfactual_data_build/outputs/live_counterfactuals/*.csv
 
 # Local experiment outputs
+mlruns/
 outputs/figures/*
 !outputs/figures/.gitkeep
 outputs/metrics/*

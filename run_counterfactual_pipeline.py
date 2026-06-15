@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 from pathlib import Path
 
@@ -9,6 +10,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 EXECUTED_DIR = ROOT / "executed_notebooks"
 SMOKE_ROOT = ROOT / "counterfactual_data_build" / "smoke"
+MLFLOW_TRACKING_DIR = ROOT / "mlruns"
+MLFLOW_EXPERIMENT_NAME = "counterfactual-scenario-generation"
+SMOKE_MLFLOW_RUN_NAME = "smoke-ddpm"
+MAX_MLFLOW_ARRAY_ARTIFACT_BYTES = 10 * 1024 * 1024
 
 NOTEBOOK_SEQUENCE = [
     "release_aware_macro_loader.ipynb",
@@ -122,6 +127,77 @@ def _build_windows(frame, target_cols, condition_cols, seq_len):
     return np.stack(x_windows).astype(np.float32), np.stack(c_windows).astype(np.float32), end_dates
 
 
+def _log_artifact_if_exists(mlflow, path: Path, artifact_path: str | None = None) -> None:
+    if path.exists():
+        mlflow.log_artifact(str(path), artifact_path=artifact_path)
+
+
+def _log_array_artifact_if_small(mlflow, path: Path, artifact_path: str | None = None) -> None:
+    if path.exists() and path.stat().st_size <= MAX_MLFLOW_ARRAY_ARTIFACT_BYTES:
+        mlflow.log_artifact(str(path), artifact_path=artifact_path)
+
+
+def _log_smoke_mlflow_run(
+    *,
+    paths: dict[str, Path],
+    model_config: dict,
+    scaler_payload: dict,
+    summary: dict,
+) -> Path:
+    try:
+        import mlflow
+    except Exception as exc:
+        raise RuntimeError(
+            "MLflow is required for smoke tracking. Install dependencies with `pip install -r requirements.txt` "
+            "or rerun smoke mode with `--disable-mlflow`."
+        ) from exc
+
+    tracking_dir = MLFLOW_TRACKING_DIR
+    tracking_dir.mkdir(parents=True, exist_ok=True)
+    os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
+    mlflow.set_tracking_uri(tracking_dir.as_uri())
+    mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
+
+    with mlflow.start_run(run_name=SMOKE_MLFLOW_RUN_NAME):
+        mlflow.log_params(
+            {
+                "generator_mode": "smoke_ddpm",
+                "asset_universe": "SPY",
+                "seq_len": model_config["seq_len"],
+                "forecast_horizon": scaler_payload["forecast_horizon"],
+                "input_dim": model_config["input_dim"],
+                "condition_dim": model_config["condition_dim"],
+                "hidden_dim": model_config["hidden_dim"],
+                "diffusion_steps": model_config["num_diffusion_steps"],
+                "epochs": summary["num_epochs_completed"],
+                "checkpoint_path": str(paths["best_checkpoint"]),
+                "scalers_path": str(paths["scalers"]),
+                "generated_samples_path": str(paths["sample_unscaled"]),
+            }
+        )
+        metrics = {
+            "final_train_loss": summary["final_train_loss"],
+            "smoke_runtime_seconds": summary["total_seconds"],
+            "number_train_windows": summary["train_samples"],
+            "number_val_windows": summary["val_samples"],
+            "number_test_windows": summary["test_samples"],
+        }
+        if summary.get("final_val_loss") is not None:
+            metrics["final_val_loss"] = summary["final_val_loss"]
+        mlflow.log_metrics(metrics)
+
+        _log_artifact_if_exists(mlflow, paths["model_config"], artifact_path="config")
+        _log_artifact_if_exists(mlflow, paths["scalers"], artifact_path="config")
+        _log_artifact_if_exists(mlflow, paths["best_checkpoint"], artifact_path="checkpoints")
+        _log_array_artifact_if_small(mlflow, paths["sample_scaled"], artifact_path="generated_samples")
+        _log_array_artifact_if_small(mlflow, paths["sample_unscaled"], artifact_path="generated_samples")
+        _log_artifact_if_exists(mlflow, paths["training_summary"], artifact_path="summaries")
+        for metadata_name in ("meta_train_smoke.csv", "meta_val_smoke.csv", "meta_test_smoke.csv"):
+            _log_artifact_if_exists(mlflow, paths["windows_dir"] / metadata_name, artifact_path="summaries")
+
+    return tracking_dir
+
+
 def _smoke_timestep_embedding(timesteps, dim):
     import math
     import torch
@@ -137,7 +213,7 @@ def _smoke_timestep_embedding(timesteps, dim):
     return emb
 
 
-def _run_smoke_pipeline() -> int:
+def _run_smoke_pipeline(enable_mlflow: bool = True) -> int:
     import numpy as np
     import pandas as pd
     import torch
@@ -293,6 +369,7 @@ def _run_smoke_pipeline() -> int:
 
     best_loss = float("inf")
     best_state = None
+    final_train_loss = None
     batch_size = min(32, len(x_train_tensor))
     epochs = 2
     for epoch in range(1, epochs + 1):
@@ -313,6 +390,7 @@ def _run_smoke_pipeline() -> int:
             optimizer.step()
             epoch_losses.append(float(loss.detach().cpu()))
         epoch_loss = float(np.mean(epoch_losses))
+        final_train_loss = epoch_loss
         print(f"Smoke epoch {epoch}/{epochs} loss={epoch_loss:.6f}")
         if epoch_loss < best_loss:
             best_loss = epoch_loss
@@ -348,6 +426,8 @@ def _run_smoke_pipeline() -> int:
     summary = {
         "artifact_mode": "smoke",
         "num_epochs_completed": epochs,
+        "final_train_loss": final_train_loss,
+        "final_val_loss": None,
         "best_train_loss": best_loss,
         "train_samples": int(len(X_train)),
         "val_samples": int(len(X_val)),
@@ -363,12 +443,23 @@ def _run_smoke_pipeline() -> int:
     print("Smoke checkpoint:", paths["best_checkpoint"])
     print("Smoke generated sample:", paths["sample_unscaled"])
     print(f"Smoke runtime seconds: {summary['total_seconds']:.1f}")
+    if enable_mlflow:
+        tracking_dir = _log_smoke_mlflow_run(
+            paths=paths,
+            model_config=model_config,
+            scaler_payload=scaler_payload,
+            summary=summary,
+        )
+        print("MLflow tracking directory:", tracking_dir)
+    else:
+        print("MLflow logging disabled.")
     return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Execute the upgraded counterfactual notebook pipeline in order.")
     parser.add_argument("--smoke", action="store_true", help="Run a small SPY-only smoke pipeline and write artifacts under counterfactual_data_build/smoke/.")
+    parser.add_argument("--disable-mlflow", action="store_true", help="Disable local MLflow logging for --smoke runs.")
     parser.add_argument("--start-at", help="Notebook filename to start at.", default=None)
     parser.add_argument("--stop-after", help="Notebook filename to stop after.", default=None)
     parser.add_argument("--timeout", type=int, default=None, help="Per-cell timeout in seconds. Default is no timeout.")
@@ -383,7 +474,7 @@ def main() -> int:
     if args.smoke:
         if args.start_at or args.stop_after:
             raise ValueError("--smoke cannot be combined with --start-at or --stop-after.")
-        return _run_smoke_pipeline()
+        return _run_smoke_pipeline(enable_mlflow=not args.disable_mlflow)
 
     nbformat, NotebookClient = load_notebook_runtime()
     sequence = select_sequence(args.start_at, args.stop_after)
